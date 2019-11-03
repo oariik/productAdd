@@ -1,4 +1,4 @@
- import Vue from 'vue';
+import Vue from 'vue';
 import { router } from '../../router';
  const state = {
     products : [ ]
@@ -9,7 +9,9 @@ import { router } from '../../router';
         return state.products;
     },
     getProduct(state){
-
+       return key => state.products.filter(element => {
+        return element.key == key;
+       })
     }
 }
 
@@ -22,7 +24,16 @@ import { router } from '../../router';
  const actions = {
     initApp( { commit } ){
         // vue resource // 
+        Vue.http.get("https://urun-islemleri-prod-44058.firebaseio.com/products.json")
+        .then(response => {
+            let data= response.body;
+            for(let key in data) {
+                data[key].key=key;
+                commit("updateProductList", data[key]);
+            }
+        })
     },
+
     saveProduct( { dispatch, commit , state } , product ){
         Vue.http.post("https://urun-islemleri-prod-44058.firebaseio.com/products.json", product)
         .then((response) => {
@@ -30,7 +41,7 @@ import { router } from '../../router';
             commit("updateProductList" , product);
 
             let tradeResult = {
-                purchase : 0, 
+                purchase : product.price, 
                 count : product.count,
                 sale : 0
             }
@@ -38,10 +49,26 @@ import { router } from '../../router';
             router.replace("/")
         })
     },
-    sellProduct( { commit } , payload ){
-
+    sellProduct( { state,commit, dispatch } , payload ){
+        let product = state.products.filter(element => {
+            return element.key == payload.key;
+        })
+        if(product){
+            let totalCount= product[0].count - payload.count ;
+        Vue.http.patch(" https://urun-islemleri-prod-44058.firebaseio.com/products/" + payload.key + ".json, {count: totalCount}")
+        .then(response => {
+            product[0].count =totalCount;
+            let tradeResult = {
+                purchase : 0, 
+                count : payload.count,
+                sale : product[0].price
+            }
+            dispatch("setTradeResult", tradeResult)
+            router.replace("/")
+        })
     }
- }
+}
+}
 
  export default {
      state,
